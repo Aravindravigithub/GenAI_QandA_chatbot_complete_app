@@ -1,66 +1,71 @@
 import streamlit as st
-import openai
-from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-import os
 from langchain.chat_models import init_chat_model
-
 import os
 from dotenv import load_dotenv
+
 load_dotenv()
 
 ## Langsmith Tracking
-os.environ["LANGCHAIN_API_KEY"]=os.getenv("LANGCHAIN_API_KEY")
-os.environ["LANGCHAIN_TRACING_V2"]="true"
-os.environ["LANGCHAIN_PROJECT"]="Simple Q&A Chatbot With Groq AI"
-os.environ["GROQ_API_KEY"] = os.getenv("GROQ_API_KEY")
+os.environ["LANGCHAIN_TRACING_V2"] = "true"
+os.environ["LANGCHAIN_PROJECT"] = "Simple Q&A Chatbot With Groq"
+# The API Key for Langsmith should be in your .env
 
 ## Prompt Template
-prompt=ChatPromptTemplate.from_messages(
+prompt = ChatPromptTemplate.from_messages(
     [
-        ("system","You are a helpful massistant . Please  repsonse to the user queries"),
-        ("user","Question:{question}")
+        ("system", "You are a helpful assistant. Please respond to the user queries."),
+        ("user", "Question:{question}")
     ]
 )
 
-def generate_response(question,api_key,engine,temperature,max_tokens):
-    #openai.api_key=api_key
-
-    llm=init_chat_model(model=engine)
-    output_parser=StrOutputParser()
-    chain=prompt|llm|output_parser
-    answer=chain.invoke({'question':question})
+def generate_response(question, api_key, engine, temperature, max_tokens):
+    # Initialize model with Groq provider
+    llm = init_chat_model(
+        model=engine, 
+        model_provider="groq", 
+        groq_api_key=api_key, # Pass the key from sidebar here
+        temperature=temperature,
+        max_tokens=max_tokens
+    )
+    
+    output_parser = StrOutputParser()
+    chain = prompt | llm | output_parser
+    answer = chain.invoke({'question': question})
     return answer
 
-## #Title of the app
-st.title("Enhanced Q&A Chatbot With Groq AI")
-
-
+## Title of the app
+st.title("Enhanced Q&A Chatbot (Powered by Groq)")
 
 ## Sidebar for settings
 st.sidebar.title("Settings")
-api_key=st.sidebar.text_input("Enter your Open AI API Key:",type="password")
+# Updated label to Groq
+api_key = st.sidebar.text_input("Enter your Groq API Key:", type="password")
 
-## Select the Groq AI model
-#engine=st.sidebar.selectbox("Select Open AI model",["gpt-4o","gpt-4-turbo","gpt-4"])
-engine=st.sidebar.selectbox("Select Open AI model",["llama-3.3-70b-versatile","gemma2-9b-it","deepseek-r1-distill-llama-70b"])
+## Select the Groq model
+engine = st.sidebar.selectbox("Select Model", [
+    "llama-3.3-70b-versatile", 
+    "gemma2-9b-it", 
+    "deepseek-r1-distill-llama-70b"
+])
 
-## Adjust response parameter
-temperature=st.sidebar.slider("Temperature",min_value=0.0,max_value=1.0,value=0.7)
-max_tokens = st.sidebar.slider("Max Tokens", min_value=50, max_value=300, value=150)
+## Adjust response parameters
+temperature = st.sidebar.slider("Temperature", min_value=0.0, max_value=1.0, value=0.7)
+max_tokens = st.sidebar.slider("Max Tokens", min_value=50, max_value=1024, value=300)
 
-## MAin interface for user input
+## Main interface for user input
 st.write("Go ahead and ask any question")
-user_input=st.text_input("You:")
+user_input = st.text_input("You:")
 
-if user_input and api_key:
-    response=generate_response(user_input,api_key,engine,temperature,max_tokens)
-    st.write(response)
-
-elif user_input:
-    st.warning("Please enter the OPen AI aPi Key in the sider bar")
+if user_input:
+    if api_key:
+        try:
+            response = generate_response(user_input, api_key, engine, temperature, max_tokens)
+            st.write(response)
+        except Exception as e:
+            st.error(f"An error occurred: {e}")
+    else:
+        st.warning("Please enter the Groq API Key in the sidebar to proceed.")
 else:
-    st.write("Please provide the user input")
-
-
+    st.info("Please provide a question to get started.")
